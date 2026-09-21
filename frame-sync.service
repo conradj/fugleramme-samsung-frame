@@ -1,0 +1,18 @@
+[Unit]
+Description=Synchronize Fugleramme artwork to Samsung Frame
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+TimeoutStartSec=5min
+User=frame-sync
+Group=frame-sync
+Environment=FRAME_SYNC_STATE_DIR=/var/lib/frame-sync
+EnvironmentFile=/etc/frame-sync.env
+StateDirectory=frame-sync
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/opt/frame-sync/.venv/bin/python /opt/frame-sync/frame-sync.py
+NoNewPrivileges=true
+PrivateTmp=true

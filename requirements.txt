@@ -1,0 +1,1 @@
+samsungtvws[cli]==3.0.6

@@ -1,0 +1,23 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+frame-sync.env
+tv-token.txt
+*-token.txt
+
+# Runtime data
+state.json
+state.tmp
+collage.png
+lock
+*.log
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+.DS_Store
