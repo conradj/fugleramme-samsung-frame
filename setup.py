@@ -18,6 +18,7 @@ CONFIG = Path("/etc/frame-sync.env")
 APP = Path("/opt/frame-sync")
 STATE = Path("/var/lib/frame-sync")
 UNITS = Path("/etc/systemd/system")
+ADVANCED_GUIDE = "https://github.com/conradj/fugleramme-samsung-frame/blob/main/docs/advanced.md"
 
 
 def run(*command):
@@ -32,7 +33,7 @@ def preflight():
     if os.geteuid() != 0:
         raise RuntimeError("Run setup with: sudo python3 setup.py")
     if not shutil.which("apt-get") or not Path("/run/systemd/system").is_dir():
-        raise RuntimeError("Guided setup needs Debian/Ubuntu with systemd. See docs/advanced.md.")
+        raise RuntimeError(f"Guided setup needs Debian/Ubuntu with systemd. See {ADVANCED_GUIDE}.")
     for name in ("frame-sync.py", "requirements.txt", "frame-sync.service", "frame-sync.timer"):
         if not (SOURCE / name).is_file():
             raise RuntimeError(f"Missing {name}; download the whole project before running setup.")
@@ -143,7 +144,7 @@ def pair_and_test():
             print("\nSetup complete. New collages will be checked every 15 minutes while the TV is in Art Mode.")
             return True
         print("Check the TV is in Art Mode and the addresses in /etc/frame-sync.env are correct.")
-        print("For more help, see docs/advanced.md. You can retry or finish later.")
+        print(f"For more help, see {ADVANCED_GUIDE}. You can retry or finish later.")
 
 
 def main():

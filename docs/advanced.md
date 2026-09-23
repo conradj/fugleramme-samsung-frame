@@ -48,10 +48,16 @@ connection cannot block later timer runs indefinitely.
 
 ## 1. Download and install
 
-Download this repository as a ZIP, extract it on your existing Fugleramme machine,
-and open a terminal in
-the extracted directory containing this README. Alternatively, clone it using
-its Git hosting URL and change into the checkout.
+For guided setup, download the `frame-sync-<version>.zip` asset from the
+[latest release](https://github.com/conradj/fugleramme-samsung-frame/releases/latest),
+extract it, enter the `frame-sync-<version>` directory and run
+`sudo python3 setup.py`. GitHub's automatically generated source ZIP is a
+different download. It contains the development repository, including photos
+and tests. You can also clone the repository for development.
+
+The manual steps below work from either the release ZIP or a source checkout:
+both include the runtime script, requirements, example configuration and
+systemd units. Run commands from the directory containing those files.
 
 Install the prerequisites and create a dedicated account:
 
@@ -255,10 +261,13 @@ loses that reference and can leave the old upload on the TV. When changing to a
 different TV or Fugleramme instance, use a separate state directory and token
 file so content IDs are not reused across devices.
 
-To update, stop the timer, wait for any running service to finish, download the
-new files, and repeat the code/dependency and unit installation commands. Keep
-your existing `/etc/frame-sync.env` and `/var/lib/frame-sync`, reload systemd,
-test once, and enable the timer again.
+For a guided update, extract a newer release ZIP into a fresh directory and
+rerun `sudo python3 setup.py` there. It pauses the timer, waits for a running
+sync, and keeps `/etc/frame-sync.env` and `/var/lib/frame-sync` intact. For a
+manual update, stop the timer, wait for any running service to finish, download
+the new files, and repeat the code/dependency and unit installation commands.
+Keep those same configuration and state paths, reload systemd, test once, and
+enable the timer again.
 
 ## Run without systemd
 
