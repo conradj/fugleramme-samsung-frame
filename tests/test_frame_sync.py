@@ -37,8 +37,12 @@ class FrameSyncTests(unittest.TestCase):
         exceptions.ResponseError = type("ResponseError", (Exception,), {})
         self.exceptions = exceptions
         dependency.exceptions = exceptions
+        websocket = types.ModuleType("websocket")
+        websocket.WebSocketException = type("WebSocketException", (Exception,), {})
+        self.websocket = websocket
         self.modules = patch.dict(sys.modules, {"samsungtvws": dependency,
-                                               "samsungtvws.exceptions": exceptions})
+                                               "samsungtvws.exceptions": exceptions,
+                                               "websocket": websocket})
         self.modules.start()
         self.addCleanup(self.modules.stop)
 
@@ -137,7 +141,7 @@ class FrameSyncTests(unittest.TestCase):
         art.upload.assert_called_once_with(str(module.IMAGE_FILE),
                                            matte="none", portrait_matte="none")
 
-    def test_missing_portrait_matte_defaults_to_none(self):
+    def test_missing_portrait_matte_falls_back_to_no_matte(self):
         module, art = self.prepare_update()
         art.get_current.return_value = {
             "event": "current_artwork", "content_id": "old-art",
@@ -145,7 +149,7 @@ class FrameSyncTests(unittest.TestCase):
         }
         module.synchronize()
         art.upload.assert_called_once_with(str(module.IMAGE_FILE),
-                                           matte="shadowbox_polar",
+                                           matte="none",
                                            portrait_matte="none")
 
     def test_unrelated_current_artwork_matte_is_not_copied(self):
@@ -209,6 +213,14 @@ class FrameSyncTests(unittest.TestCase):
         art.upload.assert_called_once_with(str(module.IMAGE_FILE),
                                            matte="shadowbox_polar",
                                            portrait_matte="none")
+
+    def test_closed_websocket_read_retries_then_uploads_without_matte(self):
+        module, art = self.prepare_update()
+        art.get_current.side_effect = self.websocket.WebSocketException("socket closed")
+        module.synchronize()
+        self.assertEqual(art.get_current.call_count, 2)
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="none", portrait_matte="none")
 
     def test_unexpected_matte_read_error_is_visible(self):
         module, art = self.prepare_update()

@@ -14,6 +14,7 @@ from typing import Any
 from urllib.request import urlopen
 
 from samsungtvws import SamsungTVWS, exceptions
+from websocket import WebSocketException
 
 
 TV_HOST = os.environ.get("TV_HOST", "").strip()
@@ -135,7 +136,8 @@ def matte_for_upload(art, managed_content_id: str) -> tuple[str, str]:
         try:
             current = art.get_current()
             break
-        except (exceptions.ConnectionFailure, exceptions.ResponseError):
+        except (exceptions.ConnectionFailure, exceptions.ResponseError,
+                WebSocketException, OSError):
             if attempt:
                 LOG.warning("Could not read the managed artwork's matte; uploading without a matte")
                 return "none", "none"
@@ -148,7 +150,7 @@ def matte_for_upload(art, managed_content_id: str) -> tuple[str, str]:
         return "none", "none"
 
     matte = current.get("matte_id")
-    portrait_matte = current.get("portrait_matte_id", "none")
+    portrait_matte = current.get("portrait_matte_id")
     if (not isinstance(matte, str) or not matte.strip()
             or not isinstance(portrait_matte, str) or not portrait_matte.strip()):
         LOG.warning("Managed artwork matte metadata is incomplete; uploading without a matte")
