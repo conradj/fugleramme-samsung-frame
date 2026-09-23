@@ -9,7 +9,7 @@ import zipfile
 
 
 MEMBERS = (
-    "VERSION", "CHANGELOG.md", "INSTALL.md", "setup.py", "frame-sync.py",
+    "VERSION", "CHANGELOG.md", "INSTALL.md", "LICENSE", "setup.py", "frame-sync.py",
     "requirements.txt", "frame-sync.service", "frame-sync.timer",
     "frame-sync.env.example",
 )
