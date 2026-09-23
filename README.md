@@ -16,8 +16,12 @@ its published Fugleramme port.
 
 ## Set it up
 
-1. Download and extract this repository on your Fugleramme machine.
-2. Open a terminal in the extracted folder and run:
+1. Download the `frame-sync-<version>.zip` asset from the
+   [latest release](https://github.com/conradj/fugleramme-samsung-frame/releases/latest)
+   onto your Fugleramme machine. Extract it with
+   `unzip frame-sync-<version>.zip`, replacing `<version>` with the download's
+   version. Use the release asset, not GitHub's automatically generated source ZIP.
+2. Run the installer from the extracted `frame-sync-<version>` folder:
 
    ```bash
    sudo python3 setup.py
@@ -54,9 +58,11 @@ sudo systemctl disable --now frame-sync.timer
 sudo systemctl enable --now frame-sync.timer
 ```
 
-To update the software, download the latest files and run `sudo python3 setup.py`
-again. It keeps your settings, saved pairing token and sync history. It pauses
-automatic checks during installation; confirm the picture to resume them.
+To update, download the newer release ZIP, extract it into a fresh folder, and
+run `sudo python3 setup.py` from that folder. The installed settings, saved
+pairing token and sync history live in `/etc/frame-sync.env` and
+`/var/lib/frame-sync`, outside the extracted folder. Setup pauses automatic
+checks during installation; confirm the picture to resume them.
 
 ## Need help or a different setup?
 

@@ -95,6 +95,13 @@ class SetupTests(unittest.TestCase):
                     self.setup.preflight()
         run.assert_not_called()
 
+    def test_archive_preflight_points_to_online_manual_guide(self):
+        with patch.object(self.setup.sys, "platform", "linux"), \
+                patch.object(self.setup.os, "geteuid", return_value=0), \
+                patch.object(self.setup.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "https://github.com/conradj/fugleramme-samsung-frame/blob/main/docs/advanced.md"):
+                self.setup.preflight()
+
     def test_update_waits_for_running_sync_and_preserves_runtime_files(self):
         self.setup.UNITS = self.root / "units"
         self.setup.UNITS.mkdir()

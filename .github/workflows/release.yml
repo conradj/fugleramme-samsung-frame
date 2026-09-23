@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Verify tag matches VERSION
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "v$(cat VERSION)"
+      - name: Run offline tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Build and validate release archive
+        run: python3 scripts/build-release.py
+      - name: Publish release and archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION)"
+          gh release create "$GITHUB_REF_NAME" "dist/frame-sync-${version}.zip" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "dist/release-notes-${version}.md" \
+            --verify-tag
