@@ -79,8 +79,5 @@ sizing workaround used for the Frame.
 
 ## Development
 
-Clone the repository or download GitHub's source ZIP for development. The
-release ZIP is the smaller, installable distribution.
-
 Run the offline tests with `python3 -m unittest discover -s tests -v`.
 Keep filled-in configuration, pairing tokens and runtime files out of Git.

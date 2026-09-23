@@ -6,9 +6,8 @@ Run commands from the downloaded project directory, not from this docs directory
 
 ## How synchronization works
 
-Install this Python service on the **same VM or Linux machine that already runs
-Fugleramme** to send updated collages to a Samsung Frame TV. **No additional VM
-is required.** The instructions below assume this shared-machine setup.
+Install this Python service on the same VM or Linux machine that already runs
+Fugleramme to send updated collages to a Samsung Frame TV.
 
 A systemd timer checks every 15 minutes. It uploads only when
 Fugleramme's state token changes and the TV reports that Art Mode is already on.
@@ -51,13 +50,9 @@ connection cannot block later timer runs indefinitely.
 For guided setup, download the `frame-sync-<version>.zip` asset from the
 [latest release](https://github.com/conradj/fugleramme-samsung-frame/releases/latest),
 extract it, enter the `frame-sync-<version>` directory and run
-`sudo python3 setup.py`. GitHub's automatically generated source ZIP is a
-different download. It contains the development repository, including photos
-and tests. You can also clone the repository for development.
+`sudo python3 setup.py`.
 
-The manual steps below work from either the release ZIP or a source checkout:
-both include the runtime script, requirements, example configuration and
-systemd units. Run commands from the directory containing those files.
+You can also install manually. The manual steps below work from either the release ZIP or a source checkout: both include the runtime script, requirements, example configuration and systemd units. Run commands from the directory containing those files.
 
 Install the prerequisites and create a dedicated account:
 
