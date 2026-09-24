@@ -14,9 +14,12 @@ cd frame-sync-<version>
 sudo python3 setup.py
 ```
 
-Enter the TV address and Fugleramme URL, put the TV in Art Mode, accept its
-permission prompt, and confirm the picture. Setup enables the fifteen-minute
-timer after that confirmation.
+Enter the TV address, put the TV in Art Mode, accept a permission prompt if
+one appears, and confirm the picture. On later runs, press Enter to keep the
+saved TV address. Setup uses Fugleramme at `http://127.0.0.1:8080` by default;
+if it runs elsewhere, edit `FUGLERAMME_URL` in `/etc/frame-sync.env` before
+pressing Enter to send the collage. Setup enables the fifteen-minute timer
+after confirmation.
 
 To update, download a newer release ZIP, extract it into a **new** folder, and
 run `sudo python3 setup.py` there. Keep `/etc/frame-sync.env` and
