@@ -27,9 +27,10 @@ its published Fugleramme port.
    sudo python3 setup.py
    ```
 
-3. Enter your **TV's IP address** and **Fugleramme URL** when asked.
-   If Fugleramme is on this machine at port 8080, press Enter to accept the URL.
-   You can also reuse an existing TV pairing token if you have one.
+3. Enter your **TV's IP address** when asked. On later runs, press Enter to
+   keep the saved address. Setup uses Fugleramme at `http://127.0.0.1:8080`;
+   if it runs elsewhere, set `FUGLERAMME_URL` in `/etc/frame-sync.env` before
+   pressing Enter to send the collage.
 4. Put the TV in **Art Mode**, accept any **FrameSync** permission prompt,
    and confirm that the collage appeared.
 
@@ -68,8 +69,9 @@ checks during installation; confirm the picture to resume them.
 
 See the [technical guide](docs/advanced.md) for pairing problems, settings,
 manual installation, changing the interval and running without systemd.
-To change an address after setup, edit `/etc/frame-sync.env` with
-`sudoedit /etc/frame-sync.env`. See the guide before switching to a different TV.
+To change the TV address after setup, rerun the installer or edit
+`/etc/frame-sync.env` with `sudoedit /etc/frame-sync.env`. See the guide before
+switching to a different TV.
 
 ## From the author
 

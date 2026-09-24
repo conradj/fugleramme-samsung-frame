@@ -10,7 +10,6 @@ import subprocess
 import sys
 import tempfile
 import time
-from urllib.parse import urlsplit
 
 
 SOURCE = Path(__file__).resolve().parent
@@ -40,42 +39,43 @@ def preflight():
 
 
 def configure():
-    if CONFIG.exists():
-        print(f"Reusing {CONFIG}, including your existing token and state paths.")
-        return False
+    existing = CONFIG.read_text(encoding="utf-8") if CONFIG.exists() else None
+    saved_host = ""
+    if existing is not None:
+        for line in existing.splitlines():
+            if line.startswith("TV_HOST="):
+                saved_host = line.partition("=")[2].strip()
     while True:
-        host = input("TV IP address or hostname: ").strip()
+        prompt = f"TV IP address or hostname [{saved_host}]: " if saved_host else "TV IP address or hostname: "
+        host = input(prompt).strip() or saved_host
         if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.\-]*", host):
             break
         print("Enter an IPv4 address or hostname, such as 192.168.1.42 or frame.local.")
-    while True:
-        url = input("Fugleramme URL [http://127.0.0.1:8080]: ").strip() or "http://127.0.0.1:8080"
-        try:
-            parsed = urlsplit(url)
-            valid = (parsed.scheme in {"http", "https"} and parsed.hostname
-                     and not parsed.username and not parsed.password
-                     and not parsed.query and not parsed.fragment
-                     and not re.search(r"[\s\x00-\x1f\x7f\"'\\$`%]", url))
-            parsed.port  # Validate the port, if supplied.
-        except ValueError:
-            valid = False
-        if valid:
-            break
-        print("Enter a base HTTP URL, such as http://192.168.1.10:8080, without /state or /collage.png.")
+    if existing is None:
+        config = (f"TV_HOST={host}\nFUGLERAMME_URL=http://127.0.0.1:8080\n"
+                  f"FRAME_SYNC_STATE_DIR={STATE}\nTV_TOKEN_FILE={STATE / 'tv-token.txt'}\n")
+    else:
+        lines = existing.splitlines(keepends=True)
+        found = False
+        for index, line in enumerate(lines):
+            if line.startswith("TV_HOST="):
+                lines[index] = f"TV_HOST={host}" + ("\n" if line.endswith("\n") else "")
+                found = True
+        if not found:
+            lines.append(("" if not lines or lines[-1].endswith("\n") else "\n") + f"TV_HOST={host}\n")
+        config = "".join(lines)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=CONFIG.parent,
                                          prefix=".frame-sync-", delete=False) as output:
             temporary = Path(output.name)
-            output.write(f"TV_HOST={host}\nFUGLERAMME_URL={url.rstrip('/')}\n"
-                         f"FRAME_SYNC_STATE_DIR={STATE}\nTV_TOKEN_FILE={STATE / 'tv-token.txt'}\n")
+            output.write(config)
             output.flush()
             os.fsync(output.fileno())
         temporary.replace(CONFIG)
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
-    return True
 
 
 def install():
@@ -109,24 +109,8 @@ def install():
     run("systemctl", "daemon-reload")
 
 
-def reuse_token():
-    destination = STATE / "tv-token.txt"
-    if destination.exists():
-        print("Keeping the saved TV pairing token.")
-        return
-    while True:
-        answer = input("Existing TV token file to reuse [Enter to pair with the TV]: ").strip()
-        if not answer:
-            return
-        source = Path(answer).expanduser()
-        if source.is_file() and source.stat().st_size:
-            run("install", "-o", "frame-sync", "-g", "frame-sync", "-m", "600", source, destination)
-            return
-        print("That file is missing or empty. Enter its full path, or press Enter to pair.")
-
-
 def pair_and_test():
-    print("\nPut the TV in Art Mode. Accept any FrameSync permission prompt on the TV.")
+    print("\nPut the TV in Art Mode. After sending, accept any FrameSync permission prompt on the TV.")
     print("If pairing times out, accept the prompt and try again here.")
     while True:
         if input("Press Enter to send the collage, or q to finish later: ").strip().lower() == "q":
@@ -139,10 +123,16 @@ def pair_and_test():
             succeeded = False
             print("The sync failed. Check the log below and the TV permission prompt.")
         run("journalctl", "-u", "frame-sync.service", "-n", "15", "--no-pager")
-        if succeeded and input("Is the Fugleramme collage showing on the TV? [y/N]: ").strip().lower() in {"y", "yes"}:
-            run("systemctl", "enable", "--now", "frame-sync.timer")
-            print("\nSetup complete. New collages will be checked every 15 minutes while the TV is in Art Mode.")
-            return True
+        if succeeded:
+            while True:
+                answer = input("Is the Fugleramme collage showing on the TV? [y/n]: ").strip().lower()
+                if answer in {"y", "yes", "n", "no"}:
+                    break
+                print("Enter y or n to confirm whether the collage is showing.")
+            if answer in {"y", "yes"}:
+                run("systemctl", "enable", "--now", "frame-sync.timer")
+                print("\nSetup complete. New collages will be checked every 15 minutes while the TV is in Art Mode.")
+                return True
         print("Check the TV is in Art Mode and the addresses in /etc/frame-sync.env are correct.")
         print(f"For more help, see {ADVANCED_GUIDE}. You can retry or finish later.")
 
@@ -150,10 +140,8 @@ def pair_and_test():
 def main():
     preflight()
     print("Fugleramme → Samsung Frame setup\n")
-    new_config = configure()
+    configure()
     install()
-    if new_config:
-        reuse_token()
     return 0 if pair_and_test() else 1
 
 
