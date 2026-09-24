@@ -36,6 +36,18 @@ jobs:
         run: |
           set -euo pipefail
           version="$(cat VERSION)"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            asset_exists="$(gh release view "$GITHUB_REF_NAME" \
+              --json assets --jq ".assets | any(.name == \"frame-sync-${version}.zip\")")"
+            if test "$asset_exists" != true; then
+              gh release upload "$GITHUB_REF_NAME" "dist/frame-sync-${version}.zip"
+            fi
+            is_draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)"
+            if test "$is_draft" = true; then
+              gh release edit "$GITHUB_REF_NAME" --draft=false
+            fi
+            exit 0
+          fi
           gh release create "$GITHUB_REF_NAME" "dist/frame-sync-${version}.zip" \
             --title "$GITHUB_REF_NAME" \
             --notes-file "dist/release-notes-${version}.md" \

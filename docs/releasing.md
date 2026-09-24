@@ -1,21 +1,26 @@
-# Release checklist
+# Releases
 
-1. Update `VERSION` to `MAJOR.MINOR.PATCH` and move user-visible changes from
-   `## [Unreleased]` into a `## [MAJOR.MINOR.PATCH] - YYYY-MM-DD` heading dated
-   for the release. Leave an empty `Unreleased` section.
-2. Run `python3 -m unittest discover -s tests -v` and
-   `python3 scripts/build-release.py`. Inspect
-   `unzip -l dist/frame-sync-<version>.zip` and
-   `cat dist/release-notes-<version>.md`. Extract the ZIP into a fresh folder
-   and check that `sudo python3 setup.py` can run there on a Debian/Ubuntu
-   systemd machine.
-3. Review and commit the version, changelog, and related source changes. Tag the
-   release commit with `git tag v<version>` and push that tag with
-   `git push origin v<version>`. The workflow checks the tag, runs tests, builds
-   the ZIP and creates the GitHub Release. Do not tag before review.
-4. Verify the [release](https://github.com/conradj/fugleramme-samsung-frame/releases)
-   has the changelog notes and only the intended ZIP asset. Download and inspect
-   that asset, then test a fresh install and an update from it.
+Every pull request merged into `main` starts **Release merged PR**. It advances
+the patch number in `VERSION`, adds a dated `CHANGELOG.md` entry from the PR
+title and number, runs the offline tests, builds the installer ZIP, commits the
+version and notes to `main`, tags that commit, and publishes a GitHub Release
+with the ZIP and matching notes. A rerun recognizes a PR that already has an
+entry and uses its existing version.
+
+Write a user-facing PR title: it becomes the release note. Put detailed changes
+in the PR description for reviewers. Check the workflow run after merging. A
+failed run can be rerun after fixing its cause.
+
+The [v0.1.0](https://github.com/conradj/fugleramme-samsung-frame/releases/tag/v0.1.0)
+and [v0.1.1](https://github.com/conradj/fugleramme-samsung-frame/releases/tag/v0.1.1)
+installer releases were published from their historical merge commits. Each
+contains the installer ZIP and notes from its `CHANGELOG.md` section.
+
+The tag-push workflow remains available for an intentional release outside the
+PR merge flow. Before manually tagging, update `VERSION` and `CHANGELOG.md`, run
+`python3 -m unittest discover -s tests -v` and
+`python3 scripts/build-release.py`, and review the ZIP and notes in `dist/`.
+Push `v<version>` only after reviewing the release commit.
 
 For rollback, reinstall the previous release ZIP by running its `setup.py`.
 Keep `/etc/frame-sync.env` and `/var/lib/frame-sync` intact. Check state-file

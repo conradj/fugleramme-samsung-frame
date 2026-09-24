@@ -1,0 +1,97 @@
+name: Release merged PR
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: merged-pr-releases
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Prepare release version and changelog
+        id: prepare
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 scripts/prepare-release.py \
+            --pr-number "$PR_NUMBER" --title "$PR_TITLE" --date "$(date -u +%F)")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if test "$version" != "$(cat VERSION)"; then
+            if git show-ref --verify --quiet "refs/tags/v${version}"; then
+              git checkout "v$version"
+            else
+              release_commit="$(git log -1 --format=%H --fixed-strings \
+                --grep="chore: release v${version} for PR #${PR_NUMBER}")"
+              test -n "$release_commit"
+              git checkout "$release_commit"
+            fi
+          fi
+      - name: Run offline tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Build and validate release archive
+        run: python3 scripts/build-release.py
+      - name: Publish version and tag
+        env:
+          VERSION: ${{ steps.prepare.outputs.version }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- VERSION CHANGELOG.md; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add VERSION CHANGELOG.md
+            git commit -m "chore: release v${VERSION} for PR #${PR_NUMBER}"
+            git push origin HEAD:main
+          fi
+          if git show-ref --verify --quiet "refs/tags/v${VERSION}"; then
+            test "$(git rev-parse "v${VERSION}^{commit}")" = "$(git rev-parse HEAD)"
+          else
+            git tag "v${VERSION}"
+            git push origin "v${VERSION}"
+          fi
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            asset_exists="$(gh release view "v${VERSION}" \
+              --json assets --jq ".assets | any(.name == \"frame-sync-${VERSION}.zip\")")"
+            if test "$asset_exists" != true; then
+              gh release upload "v${VERSION}" "dist/frame-sync-${VERSION}.zip"
+            fi
+            is_draft="$(gh release view "v${VERSION}" --json isDraft --jq .isDraft)"
+            if test "$is_draft" = true; then
+              gh release edit "v${VERSION}" --draft=false
+            fi
+            exit 0
+          fi
+          gh release create "v${VERSION}" "dist/frame-sync-${VERSION}.zip" \
+            --title "v${VERSION}" \
+            --notes-file "dist/release-notes-${VERSION}.md" \
+            --verify-tag
