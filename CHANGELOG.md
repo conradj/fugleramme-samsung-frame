@@ -10,6 +10,7 @@
 
 - Simplify guided setup to ask only for the TV address, offering the saved address on later runs.
 - Keep the TV permission pause and require an explicit answer before enabling automatic collage updates.
+
 ## [0.1.0] - 2026-09-23
 
 - Guided installation on Debian and Ubuntu with a systemd service and fifteen-minute timer.
