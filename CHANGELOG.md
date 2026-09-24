@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-24
+
+- Create installer releases after every PR merge (#3).
+
 ## [0.1.1] - 2026-09-24
 
 - Simplify guided setup to ask only for the TV address, offering the saved address on later runs.
