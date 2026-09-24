@@ -41,6 +41,11 @@ accept the TV prompt and retry when asked.
 That's it. The machine checks for new collages automatically, including after
 it restarts. If the TV is unavailable, the next scheduled check tries again.
 
+If your TV offers a matte for the FrameSync collage, you can choose it on the
+TV. When the TV reports complete matte metadata for the currently displayed
+FrameSync artwork, the next collage uses the same matte, including a deliberate
+choice of no matte. The first upload uses no matte.
+
 ![Close-up of the bird collage on the Samsung Frame, with illustrations and species names](docs/tv.jpeg)
 
 ## Everyday commands

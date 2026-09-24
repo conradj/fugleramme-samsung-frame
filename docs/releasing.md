@@ -1,11 +1,18 @@
 # Releases
 
-Every pull request merged into `main` starts **Release merged PR**. It advances
-the patch number in `VERSION`, adds a dated `CHANGELOG.md` entry from the PR
-title and number, runs the offline tests, builds the installer ZIP, commits the
-version and notes to `main`, tags that commit, and publishes a GitHub Release
-with the ZIP and matching notes. A rerun recognizes a PR that already has an
-entry and uses its existing version.
+Every pull request merged into `main` starts **Release merged PR**. By default,
+it advances the patch number in `VERSION` and adds a dated `CHANGELOG.md` entry
+from the PR title and number. It then runs the offline tests, builds the
+installer ZIP, commits the version and notes to `main`, tags that commit, and
+publishes a GitHub Release with the ZIP and matching notes. A rerun recognizes
+a PR that already has an entry and uses its existing version.
+
+For an intentional minor or major release, open the PR first to get its number.
+Before merging, commit the intended `VERSION` and a dated changelog section for
+that version to the PR branch. Include the PR number once in a bullet, as
+`(#<number>)`. The release workflow recognizes that entry and publishes the
+version already committed by the PR instead of advancing the patch number.
+Keep the `Unreleased` section empty.
 
 Write a user-facing PR title: it becomes the release note. Put detailed changes
 in the PR description for reviewers. Check the workflow run after merging. A

@@ -32,7 +32,17 @@ class FrameSyncTests(unittest.TestCase):
         self.tv_class = Mock()
         dependency = types.ModuleType("samsungtvws")
         dependency.SamsungTVWS = self.tv_class
-        self.modules = patch.dict(sys.modules, samsungtvws=dependency)
+        exceptions = types.ModuleType("samsungtvws.exceptions")
+        exceptions.ConnectionFailure = type("ConnectionFailure", (Exception,), {})
+        exceptions.ResponseError = type("ResponseError", (Exception,), {})
+        self.exceptions = exceptions
+        dependency.exceptions = exceptions
+        websocket = types.ModuleType("websocket")
+        websocket.WebSocketException = type("WebSocketException", (Exception,), {})
+        self.websocket = websocket
+        self.modules = patch.dict(sys.modules, {"samsungtvws": dependency,
+                                               "samsungtvws.exceptions": exceptions,
+                                               "websocket": websocket})
         self.modules.start()
         self.addCleanup(self.modules.stop)
 
@@ -93,6 +103,10 @@ class FrameSyncTests(unittest.TestCase):
         module.save_state("revision-1", "old-art")
         art = self.tv_class.return_value.art.return_value
         art.get_artmode.return_value = "on"
+        art.get_current.return_value = {
+            "event": "current_artwork", "content_id": "old-art",
+            "matte_id": "none", "portrait_matte_id": "none",
+        }
         art.upload.return_value = "new-art"
         with patch.object(module, "fetch_json", return_value={"token": "revision-2"}), \
                 patch.object(module, "download"):
@@ -102,12 +116,129 @@ class FrameSyncTests(unittest.TestCase):
         self.assertEqual(json.loads(module.STATE_FILE.read_text())["token"], "revision-2")
         self.assertEqual(module.load_state()["content_id"], "new-art")
 
+    def test_current_managed_artwork_matte_is_used_for_new_upload(self):
+        module, art = self.prepare_update()
+        # samsungtvws 3.0.6 get_current() returns the decoded D2D payload:
+        # content_id and matte_id, with portrait_matte_id when reported by the TV.
+        art.get_current.return_value = {
+            "event": "current_artwork", "content_id": "old-art",
+            "matte_id": "shadowbox_polar", "portrait_matte_id": "flexible_polar",
+        }
+        module.synchronize()
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="shadowbox_polar",
+                                           portrait_matte="flexible_polar")
+        art.select_image.assert_called_once_with("new-art", show=True)
+        art.delete.assert_called_once_with("old-art")
+
+    def test_current_managed_artwork_with_no_matte_keeps_none(self):
+        module, art = self.prepare_update()
+        art.get_current.return_value = {
+            "event": "current_artwork", "content_id": "old-art",
+            "matte_id": "none", "portrait_matte_id": "none",
+        }
+        module.synchronize()
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="none", portrait_matte="none")
+
+    def test_missing_portrait_matte_falls_back_to_no_matte(self):
+        module, art = self.prepare_update()
+        art.get_current.return_value = {
+            "event": "current_artwork", "content_id": "old-art",
+            "matte_id": "shadowbox_polar",
+        }
+        module.synchronize()
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="none",
+                                           portrait_matte="none")
+
+    def test_unrelated_current_artwork_matte_is_not_copied(self):
+        module, art = self.prepare_update()
+        art.get_current.return_value = {
+            "event": "current_artwork", "content_id": "unrelated-art",
+            "matte_id": "shadowbox_polar", "portrait_matte_id": "flexible_polar",
+        }
+        module.synchronize()
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="none", portrait_matte="none")
+
+    def test_first_upload_does_not_read_current_artwork(self):
+        module = self.load()
+        art = self.tv_class.return_value.art.return_value
+        art.get_artmode.return_value = "on"
+        art.upload.return_value = "new-art"
+        with patch.object(module, "fetch_json", return_value={"token": "revision-1"}), \
+                patch.object(module, "download"):
+            module.synchronize()
+        art.get_current.assert_not_called()
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="none", portrait_matte="none")
+
+    def test_incomplete_current_artwork_matte_falls_back(self):
+        module, art = self.prepare_update()
+        for metadata in (
+            {"event": "current_artwork", "content_id": "old-art"},
+            {"event": "current_artwork", "content_id": "old-art", "matte_id": ""},
+            {"event": "current_artwork", "content_id": "old-art", "matte_id": 7},
+            {"event": "current_artwork", "content_id": "old-art", "matte_id": "none",
+             "portrait_matte_id": 7},
+            None,
+        ):
+            with self.subTest(metadata=metadata):
+                module.save_state("revision-1", "old-art")
+                art.reset_mock()
+                art.get_current.return_value = metadata
+                module.synchronize()
+                art.upload.assert_called_with(str(module.IMAGE_FILE),
+                                              matte="none", portrait_matte="none")
+
+    def test_current_artwork_read_retries_then_uploads_without_matte(self):
+        module, art = self.prepare_update()
+        art.get_current.side_effect = self.exceptions.ResponseError("bad response")
+        with self.assertLogs(module.LOG, level="WARNING") as logs:
+            module.synchronize()
+        self.assertEqual(art.get_current.call_count, 2)
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="none", portrait_matte="none")
+        self.assertIn("matte", " ".join(logs.output).lower())
+
+    def test_transient_current_artwork_read_failure_recovers(self):
+        module, art = self.prepare_update()
+        art.get_current.side_effect = [self.exceptions.ConnectionFailure("busy"), {
+            "event": "current_artwork", "content_id": "old-art",
+            "matte_id": "shadowbox_polar", "portrait_matte_id": "none",
+        }]
+        module.synchronize()
+        self.assertEqual(art.get_current.call_count, 2)
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="shadowbox_polar",
+                                           portrait_matte="none")
+
+    def test_closed_websocket_read_retries_then_uploads_without_matte(self):
+        module, art = self.prepare_update()
+        art.get_current.side_effect = self.websocket.WebSocketException("socket closed")
+        module.synchronize()
+        self.assertEqual(art.get_current.call_count, 2)
+        art.upload.assert_called_once_with(str(module.IMAGE_FILE),
+                                           matte="none", portrait_matte="none")
+
+    def test_unexpected_matte_read_error_is_visible(self):
+        module, art = self.prepare_update()
+        art.get_current.side_effect = RuntimeError("programming error")
+        with self.assertRaisesRegex(RuntimeError, "programming error"):
+            module.synchronize()
+        art.upload.assert_not_called()
+
     def prepare_update(self):
         module = self.load()
         module.STATE_DIR.mkdir()
         module.save_state("revision-1", "old-art")
         art = self.tv_class.return_value.art.return_value
         art.get_artmode.return_value = "on"
+        art.get_current.return_value = {
+            "event": "current_artwork", "content_id": "old-art",
+            "matte_id": "none", "portrait_matte_id": "none",
+        }
         art.upload.return_value = "new-art"
         art.delete.return_value = True
         fetch = patch.object(module, "fetch_json", return_value={"token": "revision-2"})
@@ -139,6 +270,10 @@ class FrameSyncTests(unittest.TestCase):
 
     def test_failed_selection_is_tracked_and_retried(self):
         module, art = self.prepare_update()
+        art.get_current.return_value = {
+            "event": "current_artwork", "content_id": "old-art",
+            "matte_id": "shadowbox_polar", "portrait_matte_id": "none",
+        }
         art.select_image.side_effect = TimeoutError("lost acknowledgement")
         with self.assertRaises(TimeoutError):
             module.synchronize()
@@ -146,6 +281,9 @@ class FrameSyncTests(unittest.TestCase):
         art.select_image.side_effect = None
         module.synchronize()
         art.upload.assert_called_once()
+        art.upload.assert_called_with(str(module.IMAGE_FILE), matte="shadowbox_polar",
+                                      portrait_matte="none")
+        art.get_current.assert_called_once()
         self.assertEqual(module.load_state()["content_id"], "new-art")
 
     def test_failed_staging_never_selects_or_deletes_previous_art(self):

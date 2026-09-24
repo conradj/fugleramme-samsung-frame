@@ -13,7 +13,8 @@ import time
 from typing import Any
 from urllib.request import urlopen
 
-from samsungtvws import SamsungTVWS
+from samsungtvws import SamsungTVWS, exceptions
+from websocket import WebSocketException
 
 
 TV_HOST = os.environ.get("TV_HOST", "").strip()
@@ -126,6 +127,37 @@ def open_art_if_active():
     return None
 
 
+def matte_for_upload(art, managed_content_id: str) -> tuple[str, str]:
+    """Copy matte only from the currently displayed artwork we own."""
+    if not managed_content_id:
+        return "none", "none"
+
+    for attempt in range(2):
+        try:
+            current = art.get_current()
+            break
+        except (exceptions.ConnectionFailure, exceptions.ResponseError,
+                WebSocketException, OSError):
+            if attempt:
+                LOG.warning("Could not read the managed artwork's matte; uploading without a matte")
+                return "none", "none"
+
+    if not isinstance(current, dict):
+        LOG.warning("Current artwork metadata is incomplete; uploading without a matte")
+        return "none", "none"
+    if current.get("content_id") != managed_content_id:
+        LOG.info("Current TV artwork differs from the managed collage; uploading without a matte")
+        return "none", "none"
+
+    matte = current.get("matte_id")
+    portrait_matte = current.get("portrait_matte_id")
+    if (not isinstance(matte, str) or not matte.strip()
+            or not isinstance(portrait_matte, str) or not portrait_matte.strip()):
+        LOG.warning("Managed artwork matte metadata is incomplete; uploading without a matte")
+        return "none", "none"
+    return matte, portrait_matte
+
+
 def synchronize() -> None:
     if not TV_HOST:
         raise ValueError("TV_HOST is required; set it to your TV's IP address or hostname")
@@ -160,7 +192,9 @@ def synchronize() -> None:
         try:
             if not pending_upload and token != previous.get("token"):
                 download(f"{FUGLERAMME_URL}/collage.png?v={token}", IMAGE_FILE)
-                new_content_id = art.upload(str(IMAGE_FILE), matte="none", portrait_matte="none")
+                matte, portrait_matte = matte_for_upload(art, previous.get("content_id", ""))
+                new_content_id = art.upload(str(IMAGE_FILE), matte=matte,
+                                            portrait_matte=portrait_matte)
                 pending_upload = {"token": token, "content_id": new_content_id}
                 try:
                     # Record the upload before selection: a lost acknowledgement or

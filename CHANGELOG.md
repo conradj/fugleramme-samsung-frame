@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-24
+
+- Preserve the selected TV matte across collage updates, including a choice of no matte, and continue without a matte when TV metadata is unavailable (#4).
+
 ## [0.1.2] - 2026-09-24
 
 - Create installer releases after every PR merge (#3).

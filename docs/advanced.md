@@ -20,6 +20,15 @@ enumerate or bulk-delete other artwork.
 If the TV is unavailable or not in Art Mode, the change stays pending. Changing
 Fugleramme's layout settings also changes its state token.
 
+Before a changed collage is uploaded, FrameSync reads the currently displayed
+artwork's matte. It copies the matte and portrait matte only when the TV reports
+the content ID saved in `state.json`. Selecting unrelated artwork, receiving
+incomplete matte metadata, or failing to read the matte after one retry uses no
+matte for that update; the collage still uploads. The first upload also uses no
+matte. A reported `none` is kept as the user's choice. This content ID check
+does not change the existing behavior: when Fugleramme's token changes,
+FrameSync selects its newly uploaded collage even if another artwork is showing.
+
 Uploads are recorded before selection. If selection or the subsequent state save
 fails, the next run resumes the recorded upload while Art Mode is on. Existing
 state files are accepted without manual migration. An interruption before the TV
